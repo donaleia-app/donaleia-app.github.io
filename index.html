@@ -2,30 +2,54 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>Dona Léia · Pesagem</title>
-<meta name="theme-color" content="#2a1c12">
-<link rel="manifest" href="app.webmanifest">
-<link rel="icon" type="image/png" href="icone-192.png">
-<link rel="apple-touch-icon" href="icone-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><title>Pesagem Dona Léia</title><meta name="theme-color" content="#2a1c12"><link rel="manifest" href="app.webmanifest"><link rel="icon" type="image/png" href="icone-192.png"><link rel="apple-touch-icon" href="icone-192.png">
 <style>
   html, body { margin: 0; height: 100%; background: #1d130c; }
-  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
   #carregando { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    color: #c4ab8d; font: 16px system-ui, "Segoe UI", Roboto, sans-serif; gap: 14px; }
+    color: #c4ab8d; font: 16px system-ui, "Segoe UI", Roboto, sans-serif; gap: 14px; padding: 24px; text-align: center; }
   #carregando img { width: 96px; height: 96px; border-radius: 18px; }
+  #carregando button { padding: 12px 22px; border: 0; border-radius: 10px; background: #b85e0c; color: #fff; font: inherit; font-weight: 700; }
 </style>
 </head>
 <body>
-<!-- Casca do app Celular – Pesagem (Dona Léia). Não guarda dados: só abre o app do Apps Script em tela cheia. -->
-<div id="carregando"><img src="icone-192.png" alt=""><span>Abrindo…</span></div>
-<iframe id="app" title="Dona Léia · Pesagem"
-  src="https://script.google.com/macros/s/AKfycbzx3qLl3MO3kXk2LvPwC-4NRPhGzOFVACOXechoFYNA5h6Ppo-Clw22dFXDJfXYuTwCng/exec"
-  allow="clipboard-write"></iframe>
+<!-- Casca do app Celular – Pesagem (Dona Léia), versão 1.3 · 14/11/2026. Não guarda dados: busca a tela no Apps Script e conversa com ele sem login Google (assim funciona com várias contas no celular e no iPhone). -->
+<div id="carregando"><img src="icone-192.png" alt=""><span id="status">Abrindo…</span></div>
 <script>
-  document.getElementById("app").addEventListener("load", function () {
-    var c = document.getElementById("carregando"); if (c) c.remove();
+var API = "https://script.google.com/macros/s/AKfycbzx3qLl3MO3kXk2LvPwC-4NRPhGzOFVACOXechoFYNA5h6Ppo-Clw22dFXDJfXYuTwCng/exec";
+function boot(API) {
+  window.__api = function (fn, args) {
+    return fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ fn: fn, args: args || [] }), redirect: "follow", credentials: "omit" })
+      .then(function (r) { if (!r.ok) throw new Error("Sem resposta do servidor (" + r.status + "). Confira a internet e tente de novo."); return r.text(); })
+      .then(function (t) { var j; try { j = JSON.parse(t); } catch (e) { throw new Error("Resposta inesperada do servidor. Tente de novo em instantes."); }
+        if (!j.ok) throw new Error(j.erro || "Erro no servidor."); return j.r; });
+  };
+  function corrida(ok, falha) {
+    return new Proxy({}, { get: function (_, k) {
+      if (k === "withSuccessHandler") return function (f) { return corrida(f, falha); };
+      if (k === "withFailureHandler") return function (f) { return corrida(ok, f); };
+      return function () { var a = Array.prototype.slice.call(arguments);
+        window.__api(String(k), a).then(function (r) { if (ok) ok(r); }, function (e) { if (falha) falha(e); }); };
+    } });
+  }
+  window.google = { script: { run: corrida(null, null) } };
+}
+boot(API);
+var CABECA = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><title>Pesagem Dona Léia</title><meta name="theme-color" content="#2a1c12"><link rel="manifest" href="app.webmanifest"><link rel="icon" type="image/png" href="icone-192.png"><link rel="apple-touch-icon" href="icone-192.png">';
+var SHIM = "<script>var API = " + JSON.stringify(API) + ";(" + boot.toString() + ")(API);<\/script>";
+function abrir() {
+  document.getElementById("status").textContent = "Abrindo…";
+  var b = document.getElementById("tentar"); if (b) b.remove();
+  window.__api("__pagina", []).then(function (html) {
+    html = html.replace(/<head>/i, "<head>" + CABECA + SHIM);
+    document.open(); document.write(html); document.close();
+  }, function (e) {
+    document.getElementById("status").textContent = "Não consegui abrir o app. " + e.message;
+    var bt = document.createElement("button"); bt.id = "tentar"; bt.textContent = "Tentar de novo"; bt.onclick = abrir;
+    document.getElementById("carregando").appendChild(bt);
   });
+}
+abrir();
 </script>
 </body>
 </html>
